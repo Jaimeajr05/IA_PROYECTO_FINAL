@@ -1,6 +1,0 @@
--r requirements.txt
-pypdf>=5,<7
-faiss-cpu>=1.8,<2
-sentence-transformers>=3,<6
-groq>=1.7,<2
-tiktoken>=0.8
