@@ -1,0 +1,17 @@
+{
+  "documentos": 9,
+  "paginas": 318,
+  "duplicados_excluidos": [
+    {
+      "archivo": "2021_Boletin_epidemiologico_semana_45.pdf",
+      "duplicado_de": "2021_Boletin_epidemiologico_semana_45(1).pdf"
+    }
+  ],
+  "paginas_poco_texto": [
+    {
+      "doc_id": "PROTO_DENGUE_2024",
+      "pagina": 1,
+      "caracteres": 41
+    }
+  ]
+}
