@@ -8,3 +8,6 @@ faiss-cpu>=1.8,<2
 sentence-transformers>=3,<6
 groq>=1.7,<2
 tiktoken>=0.8
+# Entrenamiento y notebook de la Parte 1
+scipy>=1.11,<2
+matplotlib>=3.8,<4

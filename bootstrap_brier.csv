@@ -1,0 +1,4 @@
+comparación,Δ Brier,IC95 inferior,IC95 superior,conclusión
+NB_casos_clima_cal − Persistencia_prob,0.021116145586891108,-0.007884531864415689,0.05120113380736618,no significativa
+NB_casos_clima_cal − Prevalencia,-0.15026826241656113,-0.2035383998406455,-0.09972144013101389,a mejor
+NB_casos_clima_cal − NB_casos_cal,-0.0077722694262869485,-0.03929614926178739,0.023082625890753744,no significativa

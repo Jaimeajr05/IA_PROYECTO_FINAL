@@ -1,0 +1,17 @@
+# Entornos y cachés
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Secretos: NUNCA subir claves
+.streamlit/secrets.toml
+.env
+
+# Índice FAISS generado al activar el chat (se reconstruye automáticamente)
+indice/
+
+# Temporales de la evaluación del agente
+resultados/_tmp_*/
+*.log

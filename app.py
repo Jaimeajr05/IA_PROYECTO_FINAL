@@ -86,7 +86,7 @@ with st.sidebar:
     # Cambiar semana/municipio reinicia este filtro para no mantener fechas incompatibles.
     firma=(municipio,origen)
     if st.session_state.get('firma_fechas')!=firma:
-        st.session_state['rango']=(max(min_fecha,fin_origen-pd.Timedelta(weeks=26)),fin_origen)
+        st.session_state['rango']=(max(min_fecha,(pd.Timestamp(fin_origen)-pd.Timedelta(weeks=26)).date()),fin_origen)
         st.session_state['firma_fechas']=firma
     rango=st.date_input('Fechas de inicio semanal',min_value=min_fecha,max_value=fin_origen,key='rango')
     st.caption('El intervalo filtra el inicio de cada semana; se muestran datos hasta la semana de origen.')
@@ -149,11 +149,21 @@ with mapa:
     st.dataframe(m[['municipio','objetivo','porcentaje']],hide_index=True)
 
 with chat:
-    st.subheader('Consulta al agente V4')
-    st.info('La V4 utiliza plantillas numéricas y extractos documentales. La selección de fragmentos y la síntesis tienen pendientes conocidos. Cada pregunta se procesa de forma independiente.')
-    st.caption('Los selectores del dashboard no se añaden automáticamente a la pregunta: incluye municipio y fechas cuando corresponda.')
+    st.subheader('Consulta al agente')
+    MODOS={'Agente LLM (tool calling)':'llm','Controlado (cifras en Python + extractos)':'controlado'}
+    modo_txt=st.radio('Modo del agente',list(MODOS),horizontal=True,key='modo_agente',
+        help='Agente LLM: el modelo decide qué herramienta llamar (consultar_serie, estimar_probabilidad, buscar_documentos), '
+             'recibe los errores como observación y debe citar cada afirmación. Controlado: Python enruta las cifras y '
+             'la parte documental se muestra como extractos literales.')
+    if MODOS[modo_txt]=='llm':
+        st.info('El LLM elige las herramientas en un bucle agéntico (máximo 6 iteraciones y 10 llamadas). Las citas se validan contra las fuentes realmente recuperadas; su respaldo semántico requiere revisión humana.')
+    else:
+        st.info('Modo controlado: cifras formateadas por Python y extractos documentales literales, sin síntesis del LLM.')
+    st.caption('Cada pregunta se procesa de forma independiente. Los selectores del dashboard no se añaden a la pregunta: incluye municipio y semana o fechas.')
     st.code(f'Para {municipio}, con origen {origen}, estima la probabilidad de casos elevados.\n¿Qué relación entre clima y dengue describe el boletín de 2021, semana 45?')
     modelo=st.text_input('Modelo Groq con herramientas',value=os.environ.get('GROQ_MODEL','openai/gpt-oss-120b'),key='modelo_chat')
+    if st.session_state.get('agente') is not None and st.session_state.get('modo_activo')!=MODOS[modo_txt]:
+        st.warning('Cambiaste el modo: pulsa **Activar chat** para aplicarlo.')
     if st.button('Activar chat',key='activar_chat'):
         clave=clave_configurada()
         if not clave:st.error('Configura GROQ_API_KEY en .streamlit/secrets.toml o como variable de entorno. Consulta README.md.')
@@ -161,19 +171,22 @@ with chat:
             try:
                 with st.spinner('Cargando embeddings y preparando el agente. La primera ejecución descarga el modelo de embeddings.'):
                     from groq import Groq
+                    from rag_dengue.agent import AgenteDengue
                     from rag_dengue.controlado import AgenteControlado
                     cliente=Groq(api_key=clave,timeout=45,max_retries=0)
                     disponibles={x.id for x in cliente.models.list().data}
                     if modelo not in disponibles:raise ValueError('El modelo seleccionado no está disponible en esta cuenta.')
                     indice,lock=indice_documental()
-                    st.session_state['agente']=AgenteControlado(cliente,indice,RAIZ,modelo=modelo)
+                    clase=AgenteDengue if MODOS[modo_txt]=='llm' else AgenteControlado
+                    st.session_state['agente']=clase(cliente,indice,RAIZ,modelo=modelo)
                     st.session_state['chat_lock']=lock
                     st.session_state['modelo_activo']=modelo
+                    st.session_state['modo_activo']=MODOS[modo_txt]
                 st.success('Chat activado.')
             except Exception as exc:
                 st.error(f'No se pudo activar el chat ({type(exc).__name__}). Revisa dependencias, clave, modelo y conexión. La parte numérica del dashboard sigue disponible.')
     activo='agente' in st.session_state
-    if activo:st.caption('Modelo activo: '+st.session_state['modelo_activo']+'. Para cambiarlo, vuelve a activar el chat.')
+    if activo:st.caption('Modelo activo: '+st.session_state['modelo_activo']+' · modo: '+st.session_state.get('modo_activo','controlado')+'. Para cambiarlos, vuelve a activar el chat.')
     if st.button('Limpiar historial visual',key='limpiar'):st.session_state['historial']=[]
     historial=st.session_state.setdefault('historial',[])
     for i,item in enumerate(historial):
@@ -197,6 +210,8 @@ with metodo:
 - Semanas y objetivos seleccionados a partir del calendario y las predicciones disponibles, sin asumir semanas ISO.
 - Casos elevados: excedencia del percentil 75 de entrenamiento 2022–2023 por municipio.
 - Datos consolidados: no reproduce los retrasos reales de notificación.
-- Chat V4: enrutamiento numérico en Python, búsqueda documental con LLM y respuestas documentales extractivas; no es una síntesis validada.
+- Chat, modo **Agente LLM**: bucle agéntico con *tool calling* (consultar_serie, estimar_probabilidad, buscar_documentos), errores de herramientas devueltos como observación, T_máx = 6 iteraciones y 10 llamadas, validación de citas contra las fuentes recuperadas.
+- Chat, modo **Controlado**: enrutamiento numérico en Python y respuestas documentales extractivas; no es una síntesis validada.
+- Entrenamiento y evaluación del modelo: `notebooks/01_red_bayesiana_entrenamiento_evaluacion.ipynb` (validación temporal en 8 bloques; métricas frente a prevalencia y persistencia).
 - Los extractos pueden ser irrelevantes o incompletos. Las citas válidas no garantizan una respuesta suficiente.''')
     st.write('La interfaz calcula directamente los porcentajes como 100 × probabilidad. No permite al LLM reescribir las tarjetas ni las tablas.')
