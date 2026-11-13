@@ -1,0 +1,5 @@
+streamlit>=1.67,<2
+plotly>=7.1,<8
+pydeck>=0.9,<1
+numpy>=1.26,<3
+pandas>=2.2,<3
